@@ -15,9 +15,9 @@ int main() {
     InitWindow(screenWidth, screenHeight, "Flappy Bird C++");
     SetTargetFPS(60);
 
-    Texture2D bgSprite   = LoadTexture("assets/background.png");
-    Texture2D birdSprite = LoadTexture("assets/bird.png");
-    Texture2D pipeSprite = LoadTexture("assets/pipe.png");
+    Texture2D bgSprite   = LoadTexture("background.png");
+    Texture2D birdSprite = LoadTexture("bird.png");
+    Texture2D pipeSprite = LoadTexture("pipe.png");
 
     float birdX = 100.0f;
     float birdY = screenHeight / 2.0f;
@@ -36,7 +36,6 @@ int main() {
 
     bool gameOver = false;
     int score = 0;
-    int highScore = 0;
 
     while (!WindowShouldClose()) {
         float deltaTime = GetFrameTime();
@@ -77,9 +76,6 @@ int main() {
                 if (!pipes[i].passed && pipes[i].x < birdX) {
                     pipes[i].passed = true;
                     score++;
-                    if (score > highScore) {
-                        highScore = score;
-                    }
                 }
             }
 
@@ -96,19 +92,12 @@ int main() {
             }
         }
 
-        // Cálculo da rotação (inclinação) do pássaro com base na velocidade
-        float rotation = velocity * 0.08f;
-        if (rotation < -30.0f) rotation = -30.0f;
-        if (rotation > 70.0f) rotation = 70.0f;
-
         BeginDrawing();
         ClearBackground(RAYWHITE);
 
-        // Desenhar Fundo
         DrawTextureEx(bgSprite, (Vector2){ bgX, 0 }, 0.0f, bgScale, WHITE);
         DrawTextureEx(bgSprite, (Vector2){ bgX + (bgSprite.width * bgScale), 0 }, 0.0f, bgScale, WHITE);
 
-        // Desenhar Canos
         for (const auto& pipe : pipes) {
             Rectangle sourceRectTop = { 0, 0, (float)pipeSprite.width, -pipe.topHeight };
             Rectangle destRectTop = { pipe.x, 0, (float)pipeSprite.width, pipe.topHeight };
@@ -121,20 +110,13 @@ int main() {
             DrawTexturePro(pipeSprite, sourceRectBottom, destRectBottom, {0,0}, 0.0f, WHITE);
         }
 
-        // Desenhar Pássaro com Rotação em torno do centro
-        Rectangle birdSource = { 0.0f, 0.0f, (float)birdSprite.width, (float)birdSprite.height };
-        Rectangle birdDest = { birdX + birdSprite.width / 2.0f, birdY + birdSprite.height / 2.0f, (float)birdSprite.width, (float)birdSprite.height };
-        Vector2 birdOrigin = { (float)birdSprite.width / 2.0f, (float)birdSprite.height / 2.0f };
-        DrawTexturePro(birdSprite, birdSource, birdDest, birdOrigin, rotation, WHITE);
+        DrawTexture(birdSprite, (int)birdX, (int)birdY, WHITE);
 
-        // Pontuação Atual e Recorde
         DrawText(TextFormat("Score: %d", score), 20, 20, 30, WHITE);
-        DrawText(TextFormat("Best: %d", highScore), 20, 55, 25, YELLOW);
 
         if (gameOver) {
-            DrawText("GAME OVER", screenWidth / 2 - 100, screenHeight / 2 - 40, 35, RED);
-            DrawText(TextFormat("Recorde: %d", highScore), screenWidth / 2 - 60, screenHeight / 2 + 10, 22, GOLD);
-            DrawText("Toque para Reiniciar", screenWidth / 2 - 110, screenHeight / 2 + 50, 20, DARKGRAY);
+            DrawText("GAME OVER", screenWidth / 2 - 100, screenHeight / 2 - 30, 35, RED);
+            DrawText("Toque para Reiniciar", screenWidth / 2 - 110, screenHeight / 2 + 20, 20, DARKGRAY);
         }
 
         EndDrawing();
