@@ -1,0 +1,27 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do Código
+        uses: actions/checkout@v4
+
+      - name: Compilar APK com Raymob
+        uses: Bigfoot71/RayMob@v1
+        with:
+          game_name: "FlappyBird"
+          package_name: "com.meujogo.flappybird"
+          main_file: "main.cpp"
+          assets_dir: "assets"
+
+      - name: Guardar o APK Gerado
+        uses: actions/upload-artifact@v4
+        with:
+          name: FlappyBird-APK
+          path: "**/*.apk"
