@@ -37,34 +37,26 @@ jobs:
             -DGRAPHICS=GRAPHICS_API_OPENGL_ES2
           make -j$(nproc)
 
-      - name: Empacotar e Assinar APK Definitivo
+      - name: Empacotar e Assinar APK Sem Erros
         run: |
           set -e
           BUILD_TOOLS="$ANDROID_HOME/build-tools/33.0.1"
           PLATFORM_JAR="$ANDROID_HOME/platforms/android-33/android.jar"
 
-          # Configurar o ícone do app a partir do seu assets/icon.png
-          mkdir -p res/drawable res/values
-          if [ -f "assets/icon.png" ]; then
-            cp assets/icon.png res/drawable/icon.png
-          else
-            touch res/drawable/icon.png
-          fi
-
-          cat << 'STR' > res/values/strings.xml
-          <?xml version="1.0" encoding="utf-8"?>
-          <resources>
-              <string name="app_name">Flappy Bird</string>
-          </resources>
-          STR
-
-          # Empacotar APK incluindo os recursos (res) E os assets nativos de uma vez só (-A assets)
-          $BUILD_TOOLS/aapt package -f -M AndroidManifest.xml -S res -A assets -I $PLATFORM_JAR -F base.apk
+          # Criar APK base apenas com o manifesto (sem pasta res com imagens corrompidas)
+          $BUILD_TOOLS/aapt package -f -M AndroidManifest.xml -I $PLATFORM_JAR -F base.apk
 
           # Adicionar a biblioteca compilada libmain.so
           mkdir -p lib/arm64-v8a
           cp build_cmake/libmain.so lib/arm64-v8a/
           $BUILD_TOOLS/aapt add base.apk lib/arm64-v8a/libmain.so
+
+          # Adicionar todos os assets (background.png, bird.png, pipe.png, etc) diretamente na raiz do APK
+          if [ -d "assets" ]; then
+            cd assets
+            $BUILD_TOOLS/aapt add ../base.apk *
+            cd ..
+          fi
 
           # Alinhar e Assinar APK
           $BUILD_TOOLS/zipalign -v -f 4 base.apk FlappyBird_aligned.apk
