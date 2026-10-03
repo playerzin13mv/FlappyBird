@@ -54,18 +54,17 @@ jobs:
             cp -r assets/* apk_structure/assets/
           fi
 
-          echo "4. Compilando main.cpp..."
+          echo "4. Compilando main.cpp com preservacao de simbolos NativeActivity..."
           $TOOLCHAIN/aarch64-linux-android21-clang++ \
             -shared -fPIC main.cpp \
             -Iraylib_src/src \
-            -I$NDK_PATH/sources/android/native_app_glue \
-            $NDK_PATH/sources/android/native_app_glue/android_native_app_glue.c \
+            -Wl,-u,ANativeActivity_onCreate \
             build_raylib/libraylib.a \
             -lGLESv2 -lEGL -landroid -llog -lm -lc -lpthread \
             -DPLATFORM_ANDROID \
             -o apk_structure/lib/arm64-v8a/libmain.so
 
-          echo "5. Criando pacote com aapt usando o AndroidManifest.xml..."
+          echo "5. Criando pacote com aapt..."
           $BUILD_TOOLS/aapt package -f -M AndroidManifest.xml -A apk_structure/assets -I $PLATFORM_JAR -F unaligned.apk
 
           echo "6. Adicionando biblioteca nativa libmain.so..."
