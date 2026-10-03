@@ -9,7 +9,7 @@ jobs:
   build-apk:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout do codigo
+      - name: Checkout do código
         uses: actions/checkout@v4
 
       - name: Configurar Java 17
@@ -18,15 +18,22 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Compilar Raylib para Android (NDK) e Gerar APK
+      - name: Instalar NDK e Compilar APK
         run: |
-          # 1. Clonar Raylib 5.0
+          # 1. Instalar NDK e ferramentas do Android
+          echo "y" | sdkmanager --licenses || true
+          sdkmanager "ndk;25.2.9519653" "build-tools;33.0.1" "platforms;android-33"
+          
+          NDK_PATH="$ANDROID_HOME/ndk/25.2.9519653"
+          BUILD_TOOLS="$ANDROID_HOME/build-tools/33.0.1"
+          
+          # 2. Clonar o código-fonte da Raylib 5.0
           git clone --depth 1 --branch 5.0 https://github.com/raysan5/raylib.git raylib_src
           
-          # 2. Compilar Raylib para Android arm64-v8a
-          mkdir build_android && cd build_android
+          # 3. Compilar a Raylib para Android (arm64-v8a)
+          mkdir build_raylib && cd build_raylib
           cmake ../raylib_src/src \
-            -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake \
+            -DCMAKE_TOOLCHAIN_FILE=$NDK_PATH/build/cmake/android.toolchain.cmake \
             -DANDROID_ABI=arm64-v8a \
             -DANDROID_PLATFORM=android-21 \
             -DPLATFORM=Android \
@@ -34,23 +41,22 @@ jobs:
           make -j$(nproc)
           cd ..
 
-          # 3. Preparar estrutura do APK
-          BUILD_TOOLS=$(ls -d $ANDROID_HOME/build-tools/* | tail -n 1)
+          # 4. Estruturar o projeto do APK
           mkdir -p apk_build/lib/arm64-v8a apk_build/assets apk_build/res/mipmap-hdpi
           cp -r assets/* apk_build/assets/
           
-          # 4. Compilar main.cpp com NDK e glue nativo
-          $ANDROID_NDK_LATEST_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android21-clang++ \
+          # 5. Compilar o main.cpp com o Clang do NDK
+          $NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android21-clang++ \
             -shared -fPIC main.cpp \
             -Iraylib_src/src \
-            -I$ANDROID_NDK_LATEST_HOME/sources/android/native_app_glue \
-            $ANDROID_NDK_LATEST_HOME/sources/android/native_app_glue/android_native_app_glue.c \
-            build_android/libraylib.a \
+            -I$NDK_PATH/sources/android/native_app_glue \
+            $NDK_PATH/sources/android/native_app_glue/android_native_app_glue.c \
+            build_raylib/libraylib.a \
             -lGLESv2 -lEGL -landroid -llog -lm -lc -lpthread \
             -DPLATFORM_ANDROID \
             -o apk_build/lib/arm64-v8a/libmain.so
 
-          # 5. Manifest para Android NativeActivity
+          # 6. Criar AndroidManifest.xml
           cat << 'MANIFEST' > apk_build/AndroidManifest.xml
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -74,7 +80,7 @@ jobs:
           </manifest>
           MANIFEST
 
-          # 6. Empacotar e assinar o APK
+          # 7. Empacotar e assinar o APK
           $BUILD_TOOLS/aapt package -f -M apk_build/AndroidManifest.xml -S apk_build/res -A apk_build/assets -I $ANDROID_HOME/platforms/android-33/android.jar -F raw.apk
           cd apk_build && $BUILD_TOOLS/aapt add ../raw.apk lib/arm64-v8a/libmain.so && cd ..
           
