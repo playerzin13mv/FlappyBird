@@ -18,19 +18,21 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Instalar NDK e Compilar APK
+      - name: Configurar Android SDK e NDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'ndk;25.2.9519653 build-tools;33.0.1 platforms;android-33'
+
+      - name: Compilar Raylib e Gerar APK
         run: |
-          # 1. Instalar NDK e ferramentas do Android
-          echo "y" | sdkmanager --licenses || true
-          sdkmanager "ndk;25.2.9519653" "build-tools;33.0.1" "platforms;android-33"
-          
-          NDK_PATH="$ANDROID_HOME/ndk/25.2.9519653"
-          BUILD_TOOLS="$ANDROID_HOME/build-tools/33.0.1"
-          
-          # 2. Clonar o código-fonte da Raylib 5.0
+          # Localizar caminhos dinamicamente
+          NDK_PATH=$(find $ANDROID_HOME/ndk -mindepth 1 -maxdepth 1 | head -n 1)
+          BUILD_TOOLS=$(find $ANDROID_HOME/build-tools -mindepth 1 -maxdepth 1 | tail -n 1)
+
+          # 1. Clonar o código-fonte da Raylib 5.0
           git clone --depth 1 --branch 5.0 https://github.com/raysan5/raylib.git raylib_src
-          
-          # 3. Compilar a Raylib para Android (arm64-v8a)
+
+          # 2. Compilar a Raylib para Android (arm64-v8a)
           mkdir build_raylib && cd build_raylib
           cmake ../raylib_src/src \
             -DCMAKE_TOOLCHAIN_FILE=$NDK_PATH/build/cmake/android.toolchain.cmake \
@@ -41,11 +43,11 @@ jobs:
           make -j$(nproc)
           cd ..
 
-          # 4. Estruturar o projeto do APK
+          # 3. Estruturar a pasta do APK
           mkdir -p apk_build/lib/arm64-v8a apk_build/assets apk_build/res/mipmap-hdpi
-          cp -r assets/* apk_build/assets/
-          
-          # 5. Compilar o main.cpp com o Clang do NDK
+          if [ -d "assets" ]; then cp -r assets/* apk_build/assets/; fi
+
+          # 4. Compilar main.cpp com o Clang do NDK
           $NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android21-clang++ \
             -shared -fPIC main.cpp \
             -Iraylib_src/src \
@@ -56,7 +58,7 @@ jobs:
             -DPLATFORM_ANDROID \
             -o apk_build/lib/arm64-v8a/libmain.so
 
-          # 6. Criar AndroidManifest.xml
+          # 5. Criar AndroidManifest.xml
           cat << 'MANIFEST' > apk_build/AndroidManifest.xml
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -80,10 +82,10 @@ jobs:
           </manifest>
           MANIFEST
 
-          # 7. Empacotar e assinar o APK
+          # 6. Empacotar e assinar o APK
           $BUILD_TOOLS/aapt package -f -M apk_build/AndroidManifest.xml -S apk_build/res -A apk_build/assets -I $ANDROID_HOME/platforms/android-33/android.jar -F raw.apk
           cd apk_build && $BUILD_TOOLS/aapt add ../raw.apk lib/arm64-v8a/libmain.so && cd ..
-          
+
           keytool -genkey -v -keystore release.keystore -alias game -keyalg RSA -keysize 2048 -validity 10000 -storepass 123456 -keypass 123456 -dname "CN=Dev"
           $BUILD_TOOLS/apksigner sign --ks release.keystore --ks-pass pass:123456 --out FlappyBird_Funcional.apk raw.apk
 
