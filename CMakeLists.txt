@@ -10,7 +10,6 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(raylib)
 
-# Criar a biblioteca dinamica libmain.so com o glue nativo do Android
 add_library(main SHARED 
     main.cpp 
     ${ANDROID_NDK}/sources/android/native_app_glue/android_native_app_glue.c

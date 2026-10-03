@@ -23,15 +23,10 @@ jobs:
         with:
           packages: 'ndk;25.2.9519653 build-tools;33.0.1 platforms;android-33'
 
-      - name: Compilar Projeto com CMake e NDK
+      - name: Compilar C++ com NDK
         run: |
           set -e
-          
           NDK_PATH="$ANDROID_HOME/ndk/25.2.9519653"
-          BUILD_TOOLS="$ANDROID_HOME/build-tools/33.0.1"
-          PLATFORM_JAR="$ANDROID_HOME/platforms/android-33/android.jar"
-
-          echo "1. Compilando o código C++ com CMake NDK..."
           mkdir build && cd build
           cmake .. \
             -DCMAKE_TOOLCHAIN_FILE=$NDK_PATH/build/cmake/android.toolchain.cmake \
@@ -40,38 +35,30 @@ jobs:
             -DPLATFORM=Android \
             -DGRAPHICS=GRAPHICS_API_OPENGL_ES2
           make -j$(nproc)
+
+      - name: Gerar e Assinar APK
+        run: |
+          set -e
+          BUILD_TOOLS="$ANDROID_HOME/build-tools/33.0.1"
+          PLATFORM_JAR="$ANDROID_HOME/platforms/android-33/android.jar"
+
+          mkdir -p apk_root/lib/arm64-v8a apk_root/assets
+          if [ -d "assets" ]; then cp -r assets/* apk_root/assets/; fi
+          cp build/libmain.so apk_root/lib/arm64-v8a/
+
+          # Empacotar APK diretamente
+          $BUILD_TOOLS/aapt package -f -M AndroidManifest.xml -A apk_root/assets -I $PLATFORM_JAR -F base.apk
+          
+          cd apk_root
+          $BUILD_TOOLS/aapt add ../base.apk lib/arm64-v8a/libmain.so
           cd ..
 
-          echo "2. Estruturando a pasta do APK..."
-          mkdir -p apk_dir/lib/arm64-v8a
-          mkdir -p apk_dir/assets
-          mkdir -p res/values
-
-          if [ -d "assets" ]; then cp -r assets/* apk_dir/assets/; fi
-          cp build/libmain.so apk_dir/lib/arm64-v8a/
-
-          cat << 'STR' > res/values/strings.xml
-          <?xml version="1.0" encoding="utf-8"?>
-          <resources>
-              <string name="app_name">Flappy Bird</string>
-          </resources>
-          STR
-
-          echo "3. Criando o pacote APK..."
-          $BUILD_TOOLS/aapt package -f -m -J gen -M AndroidManifest.xml -S res -A apk_dir/assets -I $PLATFORM_JAR -F unaligned.apk
-
-          echo "4. Adicionando libmain.so ao APK..."
-          cd apk_dir
-          $BUILD_TOOLS/aapt add ../unaligned.apk lib/arm64-v8a/libmain.so
-          cd ..
-
-          echo "5. Alinhando e Assinando o APK..."
-          $BUILD_TOOLS/zipalign -f 4 unaligned.apk aligned.apk
+          $BUILD_TOOLS/zipalign -f 4 base.apk FlappyBird_Unaligned.apk
           keytool -genkeypair -v -keystore release.keystore -alias game -keyalg RSA -keysize 2048 -validity 10000 -storepass 123456 -keypass 123456 -dname "CN=Dev" -noprompt
-          $BUILD_TOOLS/apksigner sign --ks release.keystore --ks-pass pass:123456 --out FlappyBird_Funcional.apk aligned.apk
+          $BUILD_TOOLS/apksigner sign --ks release.keystore --ks-pass pass:123456 --out FlappyBird.apk FlappyBird_Unaligned.apk
 
       - name: Guardar o APK Final
         uses: actions/upload-artifact@v4
         with:
           name: FlappyBird-APK
-          path: FlappyBird_Funcional.apk
+          path: FlappyBird.apk
