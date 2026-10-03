@@ -36,6 +36,7 @@ int main() {
 
     bool gameOver = false;
     int score = 0;
+    int bestScore = 0;
 
     while (!WindowShouldClose()) {
         float deltaTime = GetFrameTime();
@@ -71,6 +72,9 @@ int main() {
 
                 if (CheckCollisionRecs(birdRect, topPipeRect) || CheckCollisionRecs(birdRect, bottomPipeRect)) {
                     gameOver = true;
+                    if (score > bestScore) {
+                        bestScore = score;
+                    }
                 }
 
                 if (!pipes[i].passed && pipes[i].x < birdX) {
@@ -81,6 +85,9 @@ int main() {
 
             if (birdY > screenHeight || birdY < 0) {
                 gameOver = true;
+                if (score > bestScore) {
+                    bestScore = score;
+                }
             }
         } else {
             if (IsKeyPressed(KEY_SPACE) || GetGestureDetected() == GESTURE_TAP) {
@@ -113,10 +120,12 @@ int main() {
         DrawTexture(birdSprite, (int)birdX, (int)birdY, WHITE);
 
         DrawText(TextFormat("Score: %d", score), 20, 20, 30, WHITE);
+        DrawText(TextFormat("Best: %d", bestScore), 20, 60, 25, YELLOW);
 
         if (gameOver) {
             DrawText("GAME OVER", screenWidth / 2 - 100, screenHeight / 2 - 30, 35, RED);
-            DrawText("Toque para Reiniciar", screenWidth / 2 - 110, screenHeight / 2 + 20, 20, DARKGRAY);
+            DrawText(TextFormat("Recorde: %d", bestScore), screenWidth / 2 - 70, screenHeight / 2 + 20, 22, YELLOW);
+            DrawText("Toque para Reiniciar", screenWidth / 2 - 110, screenHeight / 2 + 60, 20, DARKGRAY);
         }
 
         EndDrawing();
