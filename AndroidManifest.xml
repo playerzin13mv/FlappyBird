@@ -4,12 +4,12 @@
     android:versionCode="1"
     android:versionName="1.0">
 
+    <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="33" />
     <uses-feature android:glEsVersion="0x00020000" android:required="true" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
 
     <application
         android:allowBackup="false"
-        android:fullBackupOnly="false"
         android:label="Flappy Bird"
         android:icon="@drawable/icon"
         android:hasCode="false">

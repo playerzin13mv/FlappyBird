@@ -32,26 +32,23 @@ jobs:
           cmake .. \
             -DCMAKE_TOOLCHAIN_FILE=$NDK_PATH/build/cmake/android.toolchain.cmake \
             -DANDROID_ABI=arm64-v8a \
-            -DANDROID_PLATFORM=android-21 \
+            -DANDROID_PLATFORM=android-24 \
             -DPLATFORM=Android \
             -DGRAPHICS=GRAPHICS_API_OPENGL_ES2
           make -j$(nproc)
 
-      - name: Empacotar e Assinar APK com Ícone e Assets
+      - name: Empacotar e Assinar APK Definitivo
         run: |
           set -e
           BUILD_TOOLS="$ANDROID_HOME/build-tools/33.0.1"
           PLATFORM_JAR="$ANDROID_HOME/platforms/android-33/android.jar"
 
-          # Criar pasta de recursos e ícone
+          # Configurar o ícone do app a partir do seu assets/icon.png
           mkdir -p res/drawable res/values
-          
-          # Se existir um ícone no repositório, usa-o; se não, cria um placeholder
           if [ -f "assets/icon.png" ]; then
             cp assets/icon.png res/drawable/icon.png
           else
-            # Ícone temporário
-            wget -O res/drawable/icon.png "https://raw.githubusercontent.com/raysan5/raylib/master/logo/raylib_32x32.png" || touch res/drawable/icon.png
+            touch res/drawable/icon.png
           fi
 
           cat << 'STR' > res/values/strings.xml
@@ -61,25 +58,15 @@ jobs:
           </resources>
           STR
 
-          # Empacotar APK base com os recursos gráficos (res)
-          $BUILD_TOOLS/aapt package -f -m -J . -M AndroidManifest.xml -S res -I $PLATFORM_JAR -F base.apk
+          # Empacotar APK incluindo os recursos (res) E os assets nativos de uma vez só (-A assets)
+          $BUILD_TOOLS/aapt package -f -M AndroidManifest.xml -S res -A assets -I $PLATFORM_JAR -F base.apk
 
-          # Adicionar biblioteca nativa e assets
+          # Adicionar a biblioteca compilada libmain.so
           mkdir -p lib/arm64-v8a
           cp build_cmake/libmain.so lib/arm64-v8a/
-          
-          # Copiar assets para dentro do APK de forma estruturada
-          if [ -d "assets" ]; then
-            mkdir -p assets_tmp
-            cp -r assets/* assets_tmp/
-            cd assets_tmp
-            $BUILD_TOOLS/aapt add ../base.apk $(find . -type f)
-            cd ..
-          fi
-          
           $BUILD_TOOLS/aapt add base.apk lib/arm64-v8a/libmain.so
 
-          # Alinhar e assinar
+          # Alinhar e Assinar APK
           $BUILD_TOOLS/zipalign -v -f 4 base.apk FlappyBird_aligned.apk
           keytool -genkeypair -v -keystore release.keystore -alias game -keyalg RSA -keysize 2048 -validity 10000 -storepass 123456 -keypass 123456 -dname "CN=Dev" -noprompt
           $BUILD_TOOLS/apksigner sign --ks release.keystore --ks-pass pass:123456 --out FlappyBird.apk FlappyBird_aligned.apk
