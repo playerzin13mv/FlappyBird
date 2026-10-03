@@ -27,7 +27,8 @@ jobs:
         run: |
           set -e
           NDK_PATH="$ANDROID_HOME/ndk/25.2.9519653"
-          mkdir build && cd build
+          rm -rf build_cmake
+          mkdir build_cmake && cd build_cmake
           cmake .. \
             -DCMAKE_TOOLCHAIN_FILE=$NDK_PATH/build/cmake/android.toolchain.cmake \
             -DANDROID_ABI=arm64-v8a \
@@ -42,7 +43,6 @@ jobs:
           BUILD_TOOLS="$ANDROID_HOME/build-tools/33.0.1"
           PLATFORM_JAR="$ANDROID_HOME/platforms/android-33/android.jar"
 
-          # Criar estrutura limpa de pasta
           mkdir -p res/values
           cat << 'STR' > res/values/strings.xml
           <?xml version="1.0" encoding="utf-8"?>
@@ -51,12 +51,10 @@ jobs:
           </resources>
           STR
 
-          # Compilar recursos e gerar APK base
-          $BUILD_TOOLS/aapt package -f -m -J . -M AndroidManifest.xml -S res -I$PLATFORM_JAR -F base.apk
+          $BUILD_TOOLS/aapt package -f -m -J . -M AndroidManifest.xml -S res -I $PLATFORM_JAR -F base.apk
 
-          # Adicionar biblioteca nativa e assets
           mkdir -p lib/arm64-v8a
-          cp build/libmain.so lib/arm64-v8a/
+          cp build_cmake/libmain.so lib/arm64-v8a/
           
           if [ -d "assets" ]; then
             $BUILD_TOOLS/aapt add base.apk assets/* || true
@@ -64,7 +62,6 @@ jobs:
           
           $BUILD_TOOLS/aapt add base.apk lib/arm64-v8a/libmain.so
 
-          # Alinhar e assinar
           $BUILD_TOOLS/zipalign -v -f 4 base.apk FlappyBird_aligned.apk
           keytool -genkeypair -v -keystore release.keystore -alias game -keyalg RSA -keysize 2048 -validity 10000 -storepass 123456 -keypass 123456 -dname "CN=Dev" -noprompt
           $BUILD_TOOLS/apksigner sign --ks release.keystore --ks-pass pass:123456 --out FlappyBird.apk FlappyBird_aligned.apk
